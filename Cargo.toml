@@ -1,5 +1,6 @@
 [package]
 name = "arc_map"
+description = "A Map of Arc<Mutex<V>> that eases the access of indivdual members"
 version = "0.1.0"
 authors = ["storyfeet <thebeaky@psmail.net>"]
 license = "MIT"
