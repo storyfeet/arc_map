@@ -1,3 +1,5 @@
+//! AMapErr exists to allow ? operations in main code.
+
 use std::sync::mpsc::{SendError,RecvError};
 use std::convert::From;
 

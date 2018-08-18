@@ -1,3 +1,36 @@
+//! The ArcMap exists to enable multiple Mutex based Elements in a Map to be accessible
+//! without the need for locking the whole HashMap, while you access one element.
+//!
+//! Instead the Map is hidden inside a thread, that will return accesible elements as requested.
+//!
+//! Rather than limit the access within the fn it seemed simple to return the Arc directly.
+//!
+//! Though because the Map may not contain the required element,
+//! and becuase of thread send/recieve. The get method returns a "Result<Arc<Mutex<G>>,AMapErr>"
+//!
+//! This can be accessed as follows : *(Though normally for more complex objects)*
+//!
+//! ```
+//! 
+//! use arc_map::ArcMap;
+//! let mut am = ArcMap::new();
+//! let key = 3;
+//!
+//! am.insert(key,"hello".to_string());
+//! {
+//!     let p = am.get(3).unwrap(); //p is Arc<Mutex<String>>
+//!     let mut s = p.lock().unwrap();
+//!     s.push_str(" world");
+//! }
+//!
+//! let p2 = am.get(3).unwrap();
+//! let s2 = p2.lock().unwrap();
+//! assert_eq!(*s2,"hello world".to_string());
+//!
+//!
+//!
+//! ```
+
 use std::collections::HashMap;
 use std::sync::mpsc::{channel,Sender};
 use std::sync::{Arc,Mutex};
@@ -19,7 +52,7 @@ enum Job<K:MKey,V:Send> {
 
 
 #[derive(Clone)]
-pub struct GuardMap<K:MKey,V:Send>{
+pub struct ArcMap<K:MKey,V:Send>{
     ch:Sender<Job<K,V>>,
 }
 
@@ -50,14 +83,14 @@ fn hide_map<K:MKey,V:'static+Send>()->Sender<Job<K,V>>{
     tx 
 }
 
-impl<K:MKey,V:'static+Send> GuardMap<K,V>{
-    pub fn new()->GuardMap<K,V>{
-        GuardMap{
+impl<K:MKey,V:'static+Send> ArcMap<K,V>{
+    pub fn new()->ArcMap<K,V>{
+        ArcMap{
             ch:hide_map(),
         }
     }
     
-    pub fn add_key(&mut self, k:K,v:V)->Result<bool,AMapErr>{
+    pub fn insert(&mut self, k:K,v:V)->Result<bool,AMapErr>{
         let (tbak,rbak) = channel();
         self.ch.send(Job::Add(k,v,tbak))?;
         Ok(rbak.recv()?)
@@ -87,22 +120,28 @@ mod tests{
     use super::*;
     #[test]
     fn add_to_ten(){
-        let mut mp = GuardMap::new();
+        let mut mp = ArcMap::new();
 
         for i in 0..10 {
-            mp.add_key(i,0).unwrap();
+            mp.insert(i,0).unwrap();
         }
 
+        let mut handlers = Vec::new();
         for i in 0 .. 10{
             for _ in 0 .. 10 {
                 let n = i;
                 let m2 = mp.clone();
-                thread::spawn(move||{
+                let h = thread::spawn(move||{
                     let g = m2.clone().get(n).unwrap();
                     let mut incnum = g.lock().unwrap();
                     *incnum +=1;
                 });
+                handlers.push(h);
             }
+        }
+
+        for h in handlers {
+            h.join().unwrap();
         }
 
         for i in 0..10 {
