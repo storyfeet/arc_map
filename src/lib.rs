@@ -27,9 +27,10 @@
 //! let s2 = p2.lock().unwrap();
 //! assert_eq!(*s2,"hello world".to_string());
 //!
-//!
-//!
 //! ```
+//!
+//! While this can be achieved using traditional mutex locks,
+//! the interface here is much simpler to use.
 
 use std::collections::HashMap;
 use std::sync::mpsc::{channel,Sender};
@@ -76,7 +77,8 @@ fn hide_map<K:MKey,V:'static+Send>()->Sender<Job<K,V>>{
                 Ok(Job::Remove(ref k))=>{
                     mp.remove(k);
                 }
-                _=>return,
+                //If all senders are dropped, kill the thread
+                _=>return, 
             }
         }
     });

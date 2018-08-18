@@ -2,5 +2,7 @@
 name = "arc_map"
 version = "0.1.0"
 authors = ["storyfeet <thebeaky@psmail.net>"]
+license = "MIT"
+keywords = ["Arc","Map","Sync","Lock","Mutex"]
 
 [dependencies]
