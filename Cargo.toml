@@ -3,6 +3,7 @@ name = "arc_map"
 version = "0.1.0"
 authors = ["storyfeet <thebeaky@psmail.net>"]
 license = "MIT"
+repository = "https://github.com/storyfeet/arc_map"
 keywords = ["Arc","Map","Sync","Lock","Mutex"]
 
 [dependencies]
