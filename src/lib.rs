@@ -47,7 +47,7 @@
 //! the interface here is much simpler to use.
 
 use std::collections::HashMap;
-use std::sync::mpsc::{sync_channel,SyncSender};
+use std::sync::mpsc::{channel,Sender,sync_channel,SyncSender};
 use std::sync::{Arc,Mutex};
 use std::thread;
 use std::hash::Hash;
@@ -66,8 +66,8 @@ impl <V> MVal for V where V:'static+ Send + Debug{}
 
 /// internal type for sending across job channel
 enum Job<K:MKey,V:MVal> {
-    Add(K,V,SyncSender<bool>),
-    Get(K,SyncSender<Option< Arc<  Mutex<V>  > >>),
+    Add(K,V,Sender<bool>),
+    Get(K,Sender<Option< Arc<  Mutex<V>  > >>),
     Remove(K),
 }
 
@@ -77,8 +77,8 @@ pub struct ArcMap<K:MKey,V:MVal>{
     ch:SyncSender<Job<K,V>>,
 }
 
-fn hide_map<K:MKey,V:MVal>()->SyncSender<Job<K,V>>{
-    let (tx,rx) = sync_channel(20);
+fn hide_map<K:MKey,V:MVal>(bsize:usize)->SyncSender<Job<K,V>>{
+    let (tx,rx) = sync_channel(bsize);
     thread::spawn(move ||{
         let mut mp:HashMap<K,Arc<Mutex<V>>> = HashMap::new();
         loop {
@@ -110,13 +110,20 @@ impl<K:MKey,V:MVal> ArcMap<K,V>{
     /// That process will die when the last Clone of this map is dropped
     pub fn new()->ArcMap<K,V>{
         ArcMap{
-            ch:hide_map(),
+            ch:hide_map(20),//reasonable default
         }
     }
+
+    pub fn new_sized(bsize:usize)->ArcMap<K,V>{
+        ArcMap{
+            ch:hide_map(bsize),
+        }
+    }
+
     
     /// Add a new item to the map. 
     pub fn insert(&mut self, k:K,v:V)->Result<bool,AMapErr>{
-        let (tbak,rbak) = sync_channel(20);
+        let (tbak,rbak) = channel();
         self.ch.send(Job::Add(k,v,tbak))?;
         Ok(rbak.recv()?)
     }
@@ -125,7 +132,7 @@ impl<K:MKey,V:MVal> ArcMap<K,V>{
     /// returns type of (wrapped) Arc means you can keep this after closing and still be safe
     /// In general prefer on_do
     pub fn get(&mut self, k:K)->Result<Arc<Mutex<V>>,AMapErr>{
-        let (tbak,rbak) = sync_channel(20);
+        let (tbak,rbak) = channel();
         self.ch.send(Job::Get(k,tbak))?;
         match rbak.recv() {
             Ok(Some(a))=>Ok(a),
