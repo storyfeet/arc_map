@@ -47,9 +47,8 @@
 //! the interface here is much simpler to use.
 
 use std::collections::HashMap;
-use std::sync::mpsc::{channel,Sender};
+use std::sync::mpsc::{sync_channel,SyncSender};
 use std::sync::{Arc,Mutex};
-use std::marker::Sync;
 use std::thread;
 use std::hash::Hash;
 use std::fmt::Debug;
@@ -63,24 +62,23 @@ impl<K> MKey for K where K:'static+Send+Eq+Hash{}
 pub trait MVal: 'static +Send {}
 impl <V> MVal for V where V:'static+ Send + Debug{}
 
-unsafe impl <K:MKey,V:MVal> Sync for ArcMap<K,V> {}
 
 
 /// internal type for sending across job channel
 enum Job<K:MKey,V:MVal> {
-    Add(K,V,Sender<bool>),
-    Get(K,Sender<Option< Arc<  Mutex<V>  > >>),
+    Add(K,V,SyncSender<bool>),
+    Get(K,SyncSender<Option< Arc<  Mutex<V>  > >>),
     Remove(K),
 }
 
 
 #[derive(Clone)]
 pub struct ArcMap<K:MKey,V:MVal>{
-    ch:Sender<Job<K,V>>,
+    ch:SyncSender<Job<K,V>>,
 }
 
-fn hide_map<K:MKey,V:MVal>()->Sender<Job<K,V>>{
-    let (tx,rx) = channel();
+fn hide_map<K:MKey,V:MVal>()->SyncSender<Job<K,V>>{
+    let (tx,rx) = sync_channel(20);
     thread::spawn(move ||{
         let mut mp:HashMap<K,Arc<Mutex<V>>> = HashMap::new();
         loop {
@@ -118,7 +116,7 @@ impl<K:MKey,V:MVal> ArcMap<K,V>{
     
     /// Add a new item to the map. 
     pub fn insert(&mut self, k:K,v:V)->Result<bool,AMapErr>{
-        let (tbak,rbak) = channel();
+        let (tbak,rbak) = sync_channel(20);
         self.ch.send(Job::Add(k,v,tbak))?;
         Ok(rbak.recv()?)
     }
@@ -127,7 +125,7 @@ impl<K:MKey,V:MVal> ArcMap<K,V>{
     /// returns type of (wrapped) Arc means you can keep this after closing and still be safe
     /// In general prefer on_do
     pub fn get(&mut self, k:K)->Result<Arc<Mutex<V>>,AMapErr>{
-        let (tbak,rbak) = channel();
+        let (tbak,rbak) = sync_channel(20);
         self.ch.send(Job::Get(k,tbak))?;
         match rbak.recv() {
             Ok(Some(a))=>Ok(a),
