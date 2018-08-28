@@ -122,7 +122,7 @@ impl<K:MKey,V:MVal> ArcMap<K,V>{
 
     
     /// Add a new item to the map. 
-    pub fn insert(&mut self, k:K,v:V)->Result<bool,AMapErr>{
+    pub fn insert(&self, k:K,v:V)->Result<bool,AMapErr>{
         let (tbak,rbak) = channel();
         self.ch.send(Job::Add(k,v,tbak))?;
         Ok(rbak.recv()?)
@@ -131,7 +131,7 @@ impl<K:MKey,V:MVal> ArcMap<K,V>{
     /// The basic way of getting an item out of the list for editing
     /// returns type of (wrapped) Arc means you can keep this after closing and still be safe
     /// In general prefer on_do
-    pub fn get(&mut self, k:K)->Result<Arc<Mutex<V>>,AMapErr>{
+    pub fn get(&self, k:K)->Result<Arc<Mutex<V>>,AMapErr>{
         let (tbak,rbak) = channel();
         self.ch.send(Job::Get(k,tbak))?;
         match rbak.recv() {
@@ -143,7 +143,7 @@ impl<K:MKey,V:MVal> ArcMap<K,V>{
 
     /// This function only removes the object from the list.
     /// If you have an Arc Copy that will still be valid
-    pub fn remove(&mut self, k:K)->Result<(),AMapErr>{
+    pub fn remove(&self, k:K)->Result<(),AMapErr>{
         self.ch.send(Job::Remove(k))?;
         Ok(())
     }
