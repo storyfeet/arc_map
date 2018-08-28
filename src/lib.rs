@@ -49,6 +49,7 @@
 use std::collections::HashMap;
 use std::sync::mpsc::{channel,Sender};
 use std::sync::{Arc,Mutex};
+use std::marker::Sync;
 use std::thread;
 use std::hash::Hash;
 use std::fmt::Debug;
@@ -61,6 +62,8 @@ impl<K> MKey for K where K:'static+Send+Eq+Hash{}
 
 pub trait MVal: 'static +Send {}
 impl <V> MVal for V where V:'static+ Send + Debug{}
+
+unsafe impl <K:MKey,V:MVal> Sync for ArcMap<K,V> {}
 
 
 /// internal type for sending across job channel
