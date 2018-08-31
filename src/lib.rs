@@ -152,7 +152,7 @@ impl<K:MKey,V:MVal> ArcMap<K,V>{
     /// Returns the result of f wrapped in a Result
     /// Allows for reading data out of the object
     /// Errors if index not found, or channel/locking errors
-    pub fn on_do<RT,F>(&self, on:K,mut f:F)->Result<RT,AMapErr>
+    pub fn on_do<RT,F>(&self, on:K,f:F)->Result<RT,AMapErr>
         where F:FnOnce(&mut V)->RT
     {
         let p = self.get(on)?; 
