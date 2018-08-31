@@ -7,6 +7,7 @@ Arc Map is designed to allow a HashMap of Arc\<Mutex\<T>> to be stored in such a
 
 ### changes in v0.1.4 - coming
 changed on_do to take a &self, instead of &mut self 
+on_do now take FnOnce, as it will only call it once. 
 
 ### changes in v0.1.3
 
